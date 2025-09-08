@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Editar Endereço</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+  <h2>Editar Endereço</h2>
+  <form method="post">
+    <input type="text" name="empresa" value="{{ endereco['empresa'] }}" required>
+    <input type="text" name="nome" value="{{ endereco['nome'] }}" required>
+    <input type="text" name="rua" value="{{ endereco['rua'] }}" required>
+    <input type="text" name="cidade" value="{{ endereco['cidade'] }}" required>
+    <button type="submit">Salvar</button>
+  </form>
+  <a href="/dashboard">Voltar</a>
+</div>
+</body>
+</html>

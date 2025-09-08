@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - Agenda Digital</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+  <h2>Login</h2>
+  <form method="post">
+    <input type="text" name="username" placeholder="Usuário" required><br>
+    <input type="password" name="senha" placeholder="Senha" required><br>
+    <button type="submit">Entrar</button>
+  </form>
+  {% if erro %}<p style="color:red;">{{ erro }}</p>{% endif %}
+</div>
+</body>
+</html>

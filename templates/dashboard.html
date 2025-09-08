@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Agenda Digital</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</head>
+<body>
+<div class="container">
+    <div class="topbar">
+        <h2>Bem-vindo, {{ session['usuario'] }}</h2>
+        <a class="btn btn-outline" href="/logout">Sair</a>
+    </div>
+
+    <h3>Total de endereços: {{ total }}</h3>
+
+    <!-- Formulário para criar novo endereço -->
+    <form id="form-novo" method="post" action="/novo" style="margin-top:10px;">
+        <input type="text" name="empresa" placeholder="Empresa" required>
+        <input type="text" name="nome" placeholder="Nome" required>
+        <input type="text" name="rua" placeholder="Rua" required>
+        <input type="text" name="cidade" placeholder="Cidade" required>
+        <button type="submit">Adicionar</button>
+        <button type="button" id="btn-limpar-filtros" onclick="resetarFiltrosExcel()">Limpar filtros</button>
+    </form>
+
+    <!-- Tabela com filtro estilo Excel -->
+    <table id="tabela-enderecos">
+        <thead>
+            <tr>
+                <th data-col="0">Empresa <button class="filter-trigger" onclick="abrirFiltro(this)" type="button">▼</button><div class="filter-menu" data-col="0"></div></th>
+                <th data-col="1">Nome <button class="filter-trigger" onclick="abrirFiltro(this)" type="button">▼</button><div class="filter-menu" data-col="1"></div></th>
+                <th data-col="2">Rua</th>
+                <th data-col="3">Cidade <button class="filter-trigger" onclick="abrirFiltro(this)" type="button">▼</button><div class="filter-menu" data-col="3"></div></th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in enderecos %}
+            <tr>
+                <td>{{ e['empresa'] }}</td>
+                <td>{{ e['nome'] }}</td>
+                <td>{{ e['rua'] }}</td>
+                <td>{{ e['cidade'] }}</td>
+                <td class="acoes">
+                    <a class="btn btn-sm btn-primary" href="/editar/{{ e['id'] }}">Editar</a>
+                    <a class="btn btn-sm btn-danger" href="#" onclick="return confirmarExclusao('{{ e["id"] }}', '{{ e["nome"] }}')">Excluir</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</body>
+</html>
