@@ -1,40 +1,55 @@
 from flask import Flask, render_template, request, redirect, url_for, session
-import sqlite3, hashlib
+import os, hashlib
+from sqlalchemy import create_engine, Column, Integer, String, Text
+from sqlalchemy.orm import sessionmaker, declarative_base, scoped_session
+from dotenv import load_dotenv
+
+# Carrega variáveis de ambiente do arquivo .env
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = "segredo_megatron"  # chave para sessão
 
-# Função para conectar ao banco
-def get_db():
-    conn = sqlite3.connect("agenda.db")
-    conn.row_factory = sqlite3.Row
-    return conn
+# Configuração do banco: Render usa DATABASE_URL. Local usa SQLite.
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///agenda.db")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Inicializa tabelas
+# Para desenvolvimento local, você pode usar esta URL do PostgreSQL do Render:
+# DATABASE_URL = "postgresql://bancodeenderecos_user:GWLa4Qo4t4gFaPElKZaJWu9YK0nwmiz8@dpg-d3097rnfte5s73f3qj50-a.oregon-postgres.render.com/bancodeenderecos"
+
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
+Base = declarative_base()
+
+
+class Usuario(Base):
+    __tablename__ = "usuarios"
+    id = Column(Integer, primary_key=True)
+    username = Column(String(255), unique=True)
+    senha_hash = Column(String(255))
+
+
+class Endereco(Base):
+    __tablename__ = "enderecos"
+    id = Column(Integer, primary_key=True)
+    empresa = Column(Text)
+    nome = Column(Text)
+    rua = Column(Text)
+    cidade = Column(Text)
+
+
 def init_db():
-    conn = get_db()
-    c = conn.cursor()
-
-    c.execute("""CREATE TABLE IF NOT EXISTS usuarios (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE,
-                    senha_hash TEXT)""")
-
-    c.execute("""CREATE TABLE IF NOT EXISTS enderecos (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    empresa TEXT,
-                    nome TEXT,
-                    rua TEXT,
-                    cidade TEXT)""")
-
-    # cria usuário admin padrão (senha: 1234)
-    c.execute("SELECT * FROM usuarios WHERE username=?", ("admin",))
-    if not c.fetchone():
-        senha_hash = hashlib.sha256("1234".encode()).hexdigest()
-        c.execute("INSERT INTO usuarios (username, senha_hash) VALUES (?,?)", ("admin", senha_hash))
-
-    conn.commit()
-    conn.close()
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        admin = db.query(Usuario).filter(Usuario.username == "admin").first()
+        if not admin:
+            senha_hash = hashlib.sha256("1234".encode()).hexdigest()
+            db.add(Usuario(username="admin", senha_hash=senha_hash))
+            db.commit()
+    finally:
+        db.close()
 
 # 🔐 Tela de login
 @app.route("/", methods=["GET", "POST"])
@@ -44,11 +59,11 @@ def login():
         senha = request.form["senha"]
         senha_hash = hashlib.sha256(senha.encode()).hexdigest()
 
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("SELECT * FROM usuarios WHERE username=? AND senha_hash=?", (username, senha_hash))
-        user = c.fetchone()
-        conn.close()
+        db = SessionLocal()
+        try:
+            user = db.query(Usuario).filter(Usuario.username == username, Usuario.senha_hash == senha_hash).first()
+        finally:
+            db.close()
 
         if user:
             session["usuario"] = username
@@ -74,30 +89,21 @@ def dashboard():
     filtro_empresa = request.args.get("empresa", "")
     filtro_cidade = request.args.get("cidade", "")
 
-    conn = get_db()
-    c = conn.cursor()
-    query = "SELECT * FROM enderecos WHERE 1=1"
-    params = []
-
-    if filtro_nome:
-        query += " AND nome LIKE ?"
-        params.append(f"%{filtro_nome}%")
-    if filtro_empresa:
-        query += " AND empresa LIKE ?"
-        params.append(f"%{filtro_empresa}%")
-    if filtro_cidade:
-        query += " AND cidade LIKE ?"
-        params.append(f"%{filtro_cidade}%")
-
-    c.execute(query, params)
-    enderecos = c.fetchall()
-
-    # conta total
-    c.execute("SELECT COUNT(*) FROM enderecos")
-    total = c.fetchone()[0]
-
-    conn.close()
-    return render_template("dashboard.html", enderecos=enderecos, total=total,
+    db = SessionLocal()
+    try:
+        consulta = db.query(Endereco)
+        if filtro_nome:
+            consulta = consulta.filter(Endereco.nome.ilike(f"%{filtro_nome}%"))
+        if filtro_empresa:
+            consulta = consulta.filter(Endereco.empresa.ilike(f"%{filtro_empresa}%"))
+        if filtro_cidade:
+            consulta = consulta.filter(Endereco.cidade.ilike(f"%{filtro_cidade}%"))
+        enderecos = consulta.all()
+        total = db.query(Endereco).count()
+        enderecos_ctx = [{"id": e.id, "empresa": e.empresa, "nome": e.nome, "rua": e.rua, "cidade": e.cidade} for e in enderecos]
+    finally:
+        db.close()
+    return render_template("dashboard.html", enderecos=enderecos_ctx, total=total,
                            filtro_nome=filtro_nome, filtro_empresa=filtro_empresa, filtro_cidade=filtro_cidade)
 
 # ➕ Adicionar endereço
@@ -111,12 +117,12 @@ def novo():
     rua = request.form["rua"]
     cidade = request.form["cidade"]
 
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("INSERT INTO enderecos (empresa, nome, rua, cidade) VALUES (?,?,?,?)",
-              (empresa, nome, rua, cidade))
-    conn.commit()
-    conn.close()
+    db = SessionLocal()
+    try:
+        db.add(Endereco(empresa=empresa, nome=nome, rua=rua, cidade=cidade))
+        db.commit()
+    finally:
+        db.close()
     return redirect(url_for("dashboard"))
 
 # ✏️ Editar endereço
@@ -125,22 +131,23 @@ def editar(id):
     if "usuario" not in session:
         return redirect(url_for("login"))
 
-    conn = get_db()
-    c = conn.cursor()
-    if request.method == "POST":
-        empresa = request.form["empresa"]
-        nome = request.form["nome"]
-        rua = request.form["rua"]
-        cidade = request.form["cidade"]
-        c.execute("UPDATE enderecos SET empresa=?, nome=?, rua=?, cidade=? WHERE id=?",
-                  (empresa, nome, rua, cidade, id))
-        conn.commit()
-        conn.close()
-        return redirect(url_for("dashboard"))
+    db = SessionLocal()
+    try:
+        if request.method == "POST":
+            empresa = request.form["empresa"]
+            nome = request.form["nome"]
+            rua = request.form["rua"]
+            cidade = request.form["cidade"]
+            e = db.get(Endereco, id)
+            if e:
+                e.empresa, e.nome, e.rua, e.cidade = empresa, nome, rua, cidade
+                db.commit()
+            return redirect(url_for("dashboard"))
 
-    c.execute("SELECT * FROM enderecos WHERE id=?", (id,))
-    endereco = c.fetchone()
-    conn.close()
+        e = db.get(Endereco, id)
+        endereco = {"id": e.id, "empresa": e.empresa, "nome": e.nome, "rua": e.rua, "cidade": e.cidade}
+    finally:
+        db.close()
     return render_template("editar.html", endereco=endereco)
 
 # ❌ Excluir endereço
@@ -149,11 +156,14 @@ def excluir(id):
     if "usuario" not in session:
         return redirect(url_for("login"))
 
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("DELETE FROM enderecos WHERE id=?", (id,))
-    conn.commit()
-    conn.close()
+    db = SessionLocal()
+    try:
+        e = db.get(Endereco, id)
+        if e:
+            db.delete(e)
+            db.commit()
+    finally:
+        db.close()
     return redirect(url_for("dashboard"))
 
 if __name__ == "__main__":
