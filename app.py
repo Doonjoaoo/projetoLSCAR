@@ -25,23 +25,6 @@ engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 Base = declarative_base()
 
-# Inicializa o banco de dados (cria tabelas se não existirem)
-def init_db():
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    try:
-        admin = db.query(Usuario).filter(Usuario.username == "admin").first()
-        if not admin:
-            senha_hash = hashlib.sha256("1234".encode()).hexdigest()
-            db.add(Usuario(username="admin", senha_hash=senha_hash))
-            db.commit()
-    finally:
-        db.close()
-
-# Chama init_db() quando o módulo é importado (importante para o Render)
-init_db()
-
-
 class Usuario(Base):
     __tablename__ = "usuarios"
     id = Column(Integer, primary_key=True)
@@ -57,6 +40,22 @@ class Endereco(Base):
     rua = Column(Text)
     cidade = Column(Text)
 
+
+# Inicializa o banco de dados (cria tabelas se não existirem)
+def init_db():
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        admin = db.query(Usuario).filter(Usuario.username == "admin").first()
+        if not admin:
+            senha_hash = hashlib.sha256("1234".encode()).hexdigest()
+            db.add(Usuario(username="admin", senha_hash=senha_hash))
+            db.commit()
+    finally:
+        db.close()
+
+# Chama init_db() quando o módulo é importado (importante para o Render)
+init_db()
 
 # 🔐 Tela de login
 @app.route("/", methods=["GET", "POST"])
