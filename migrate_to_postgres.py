@@ -16,7 +16,11 @@ def migrate_data():
     
     # URLs dos bancos
     SQLITE_URL = "sqlite:///agenda.db"
-    POSTGRES_URL = "postgresql://bancodeenderecos_user:GWLa4Qo4t4gFaPElKZaJWu9YK0nwmiz8@dpg-d3097rnfte5s73f3qj50-a.oregon-postgres.render.com/bancodeenderecos"
+    POSTGRES_URL = os.getenv("DATABASE_URL", "postgresql://bancodeenderecos_user:GWLa4Qo4t4gFaPElKZaJWu9YK0nwmiz8@dpg-d3097rnfte5s73f3qj50-a.oregon-postgres.render.com/bancodeenderecos")
+    if POSTGRES_URL.startswith("postgres://"):
+        POSTGRES_URL = POSTGRES_URL.replace("postgres://", "postgresql://", 1)
+    if POSTGRES_URL.startswith("postgresql://") and "+" not in POSTGRES_URL:
+        POSTGRES_URL = POSTGRES_URL.replace("postgresql://", "postgresql+psycopg://", 1)
     
     try:
         print("🔄 Iniciando migração de dados...")
@@ -26,7 +30,7 @@ def migrate_data():
         print("✅ Conectado ao SQLite local")
         
         # Conecta ao PostgreSQL
-        postgres_engine = create_engine(POSTGRES_URL, pool_pre_ping=True)
+        postgres_engine = create_engine(POSTGRES_URL, pool_pre_ping=True, pool_recycle=300)
         print("✅ Conectado ao PostgreSQL do Render")
         
         # Verifica se o arquivo SQLite existe

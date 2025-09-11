@@ -12,13 +12,16 @@ app.secret_key = "segredo_megatron"  # chave para sessão
 
 # Configuração do banco: Render usa DATABASE_URL. Local usa SQLite.
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///agenda.db")
+# Normaliza URLs do Render e força driver psycopg3
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+if DATABASE_URL.startswith("postgresql://") and "+" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
 # Para desenvolvimento local, você pode usar esta URL do PostgreSQL do Render:
 # DATABASE_URL = "postgresql://bancodeenderecos_user:GWLa4Qo4t4gFaPElKZaJWu9YK0nwmiz8@dpg-d3097rnfte5s73f3qj50-a.oregon-postgres.render.com/bancodeenderecos"
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 Base = declarative_base()
 
