@@ -14,7 +14,7 @@ def test_connection():
     """Testa a conexão com o banco de dados"""
     
     # Usa variável de ambiente ou a URL direta do Render
-    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://bancodeenderecos_user:GWLa4Qo4t4gFaPElKZaJWu9YK0nwmiz8@dpg-d3097rnfte5s73f3qj50-a.oregon-postgres.render.com/bancodeenderecos")
+    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://bancodeenderecos_user:GWLa4Qo4t4gFaPElKZaJWu9YK0nwmiz8@dpg-d3097rnfte5s73f3qj50-a.oregon-postgres.render.com/bancodeenderecos").strip()
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     if DATABASE_URL.startswith("postgresql://") and "+" not in DATABASE_URL:

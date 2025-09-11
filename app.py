@@ -11,7 +11,7 @@ app = Flask(__name__)
 app.secret_key = "segredo_megatron"  # chave para sessão
 
 # Configuração do banco: Render usa DATABASE_URL. Local usa SQLite.
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///agenda.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///agenda.db").strip()
 # Normaliza URLs do Render e força driver psycopg3
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)

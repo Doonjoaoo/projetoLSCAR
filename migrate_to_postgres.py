@@ -16,7 +16,7 @@ def migrate_data():
     
     # URLs dos bancos
     SQLITE_URL = "sqlite:///agenda.db"
-    POSTGRES_URL = os.getenv("DATABASE_URL", "postgresql://bancodeenderecos_user:GWLa4Qo4t4gFaPElKZaJWu9YK0nwmiz8@dpg-d3097rnfte5s73f3qj50-a.oregon-postgres.render.com/bancodeenderecos")
+    POSTGRES_URL = os.getenv("DATABASE_URL", "postgresql://bancodeenderecos_user:GWLa4Qo4t4gFaPElKZaJWu9YK0nwmiz8@dpg-d3097rnfte5s73f3qj50-a.oregon-postgres.render.com/bancodeenderecos").strip()
     if POSTGRES_URL.startswith("postgres://"):
         POSTGRES_URL = POSTGRES_URL.replace("postgres://", "postgresql://", 1)
     if POSTGRES_URL.startswith("postgresql://") and "+" not in POSTGRES_URL:
